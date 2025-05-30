@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import "./ProfileUpdate.css";
 import assets from "../../assets/assets";
 import { onAuthStateChanged } from "firebase/auth";
@@ -7,6 +7,7 @@ import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import upload from "../../lib/Upload";
+import { AppContext } from "../../context/AppContext";
 
 const ProfileUpdate = () => {
   const [image, setImage] = useState(false);
@@ -15,6 +16,7 @@ const ProfileUpdate = () => {
   const [uid, setUid] = useState("");
   const [prevImage, setPrevImage] = useState("");
   const navigate = useNavigate();
+  const { setUserData } = useContext(AppContext);
 
   const profileUpdate = async (event) => {
     event.preventDefault();
@@ -37,7 +39,13 @@ const ProfileUpdate = () => {
           name: name,
         });
       }
-    } catch (error) {}
+      const snap = await getDoc(docRef);
+      setUserData(snap.data());
+      navigate("/chat");
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message);
+    }
   };
 
   useEffect(() => {
@@ -97,7 +105,13 @@ const ProfileUpdate = () => {
         </form>
         <img
           className="profile-pic"
-          src={image ? URL.createObjectURL(image) : assets.logo_icon}
+          src={
+            image
+              ? URL.createObjectURL(image)
+              : prevImage
+              ? prevImage
+              : assets.logo_icon
+          }
           alt=""
         />
       </div>
