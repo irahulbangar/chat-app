@@ -2,13 +2,32 @@ import React, { useContext, useState } from "react";
 import "./LeftSidebar.css";
 import assets from "../../assets/assets";
 import { useNavigate } from "react-router-dom";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import {
+  arrayUnion,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  where,
+} from "firebase/firestore";
 import { db } from "../../config/firebase";
 import { AppContext } from "../../context/AppContext";
+import { toast } from "react-toastify";
 
 const LeftSidebar = () => {
   const navigate = useNavigate();
-  const { userData } = useContext(AppContext);
+  const {
+    userData,
+    chatData,
+    chatUser,
+    setChatUser,
+    setMessagesId,
+    messagesId,
+  } = useContext(AppContext);
   const [user, setUser] = useState(null);
   const [showSearch, setShowSearch] = useState(false);
 
@@ -21,7 +40,15 @@ const LeftSidebar = () => {
         const q = query(userRef, where("username", "==", input.toLowerCase()));
         const querySnap = await getDocs(q);
         if (!querySnap.empty && querySnap.docs[0].data().id !== userData.id) {
-          setUser(querySnap.docs[0].data());
+          let userExist = false;
+          chatData.map((user) => {
+            if (user.rId === querySnap.docs[0].data().id) {
+              userExist = true;
+            }
+          });
+          if (!userExist) {
+            setUser(querySnap.docs[0].data());
+          }
         } else {
           setUser(null);
         }
@@ -29,6 +56,61 @@ const LeftSidebar = () => {
         setShowSearch(false);
       }
     } catch (error) {}
+  };
+
+  const addChat = async () => {
+    const messagesRef = collection(db, "messages");
+    const chatsRef = collection(db, "chats");
+    try {
+      const newMessageRef = doc(messagesRef);
+
+      await setDoc(newMessageRef, {
+        createAt: serverTimestamp(),
+        messages: [],
+      });
+
+      await updateDoc(doc(chatsRef, user.id), {
+        chatsData: arrayUnion({
+          messageId: newMessageRef.id,
+          lastMessage: "",
+          rId: userData.id,
+          updatedAt: Date.now(),
+          messageSeen: true,
+        }),
+      });
+
+      await updateDoc(doc(chatsRef, userData.id), {
+        chatsData: arrayUnion({
+          messageId: newMessageRef.id,
+          lastMessage: "",
+          rId: user.id,
+          updatedAt: Date.now(),
+          messageSeen: true,
+        }),
+      });
+    } catch (error) {
+      toast.error(error.message);
+      console.log(error);
+    }
+  };
+
+  const setChat = async (item) => {
+    try {
+      setMessagesId(item.messageId);
+      setChatUser(item);
+      const userChatRef = doc(db, "chats", userData.id);
+      const userChatSnapshot = await getDoc(userChatRef);
+      const userChatsData = userChatSnapshot.data();
+      const chatIndex = userChatsData.chatsData.findIndex(
+        (c) => c.messageId === item.messageId
+      );
+      userChatsData.chatsData[chatIndex].messageSeen = true;
+      await updateDoc(userChatRef, {
+        chatsData: userChatsData.chatsData,
+      });
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   return (
@@ -56,22 +138,35 @@ const LeftSidebar = () => {
       </div>
       <div className="ls-list">
         {showSearch && user ? (
-          <div className="friends add-user">
+          <div onClick={addChat} className="friends add-user">
             <img src={user.avatar ? user.avatar : assets.profile_img} alt="" />
             <p>{user.name}</p>
           </div>
         ) : (
-          Array(12)
-            .fill("")
-            .map((item, index) => (
-              <div key={index} className="friends">
-                <img src={assets.profile_img} alt="profile-icon" />
-                <div>
-                  <p>Richard Sanford</p>
-                  <span>Hello, How are you?</span>
-                </div>
+          chatData.map((item, index) => (
+            <div
+              onClick={() => setChat(item)}
+              key={index}
+              className={`friends ${
+                (item.messageSeen || item.messageId) === messagesId
+                  ? ""
+                  : "border-img"
+              }`}
+            >
+              <img
+                src={
+                  item.userData?.avatar
+                    ? item.userData.avatar
+                    : assets.profile_img
+                }
+                alt="profile-icon"
+              />
+              <div>
+                <p>{item.userData.name}</p>
+                <span>{item.lastMessage}</span>
               </div>
-            ))
+            </div>
+          ))
         )}
       </div>
     </div>

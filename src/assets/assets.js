@@ -9,6 +9,7 @@ import pic2 from "./pic2.png";
 import pic3 from "./pic3.png";
 import pic4 from "./pic4.png";
 import profile_img from "./profile_richard.png";
+import profile_img1 from "./profile_enrique.png";
 import search_icon from "./search_icon.png";
 import send_button from "./send_button.png";
 import add_icon from "./add_icon.png";
@@ -28,6 +29,7 @@ const assets = {
   pic3,
   pic4,
   profile_img,
+  profile_img1,
   search_icon,
   send_button,
   add_icon,
